@@ -3,15 +3,20 @@ from typing import Optional, Union, List, Dict, Any, Hashable
 
 import pandas as pd
 import openpyxl
-import xlrd
 from pathlib import Path
+
+try:
+    import xlrd
+    XLRD_AVAILABLE = True
+except ImportError:
+    XLRD_AVAILABLE = False
 
 
 class ExcelReader:
     """
     Базовый класс для чтения Excel-файлов.
     Автоматически определяет формат (.xls / .xlsx) и использует правильный парсер.
-    Для старых .xls файлов использует xlrd с поддержкой кодировок Windows-1251/CP866.
+    Для старых .xls файлов пробует xlrd, затем pandas с engine='xlrd'.
     """
 
     # Популярные русские кодировки для старых Excel-файлов
@@ -67,7 +72,6 @@ class ExcelReader:
         elif ext in (".xlsx", ".xlsm"):
             return "xlsx"
         else:
-            # Пробуем определить по сигнатуре файла
             with open(file_path, "rb") as f:
                 header = f.read(8)
             if header[:8] == b'\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1':
@@ -90,7 +94,6 @@ class ExcelReader:
         color_col = color_filter_column or self.color_filter_column
         enc = encoding or self.encoding
 
-        # Определяем формат файла
         file_format = self._detect_format(path)
         print(f"[ExcelReader] Обнаружен формат: {file_format}")
 
@@ -100,7 +103,6 @@ class ExcelReader:
             else:
                 data = self._load_xlsx(path, sheet, color_col)
 
-            # Исправляем кодировку во всех строковых данных
             if isinstance(data, pd.DataFrame):
                 data = self.fix_dataframe_encoding(data)
             elif isinstance(data, dict):
@@ -130,43 +132,65 @@ class ExcelReader:
 
     def _load_xls(self, path: str, sheet: Optional[Union[str, int]],
                   color_col: Optional[str], encoding: Optional[str]) -> pd.DataFrame:
-        """Загружает .xls через xlrd с поддержкой кодировок."""
-        # Пробуем открыть с разными кодировками
-        workbook = None
-        used_encoding = None
+        """Загружает .xls: пробует xlrd напрямую, затем pandas с engine='xlrd'."""
 
+        # Сначала пробуем xlrd напрямую для лучшего контроля кодировки
+        if XLRD_AVAILABLE:
+            workbook = self._try_xlrd(path, encoding)
+            if workbook:
+                return self._read_xlrd_workbook(workbook, sheet, color_col)
+
+        # Fallback: pandas с engine='xlrd' (xlrd сам подберёт кодировку)
+        print("[ExcelReader] Fallback на pandas + xlrd engine")
+        try:
+            df = pd.read_excel(path, sheet_name=sheet, engine="xlrd")
+            return df
+        except Exception as e:
+            print(f"[ExcelReader] pandas+xlrd тоже не сработал: {e}")
+
+        # Последний fallback: пробуем как .xlsx (на случай если файл на самом деле xlsx)
+        try:
+            print("[ExcelReader] Пробуем открыть как .xlsx...")
+            df = pd.read_excel(path, sheet_name=sheet, engine="openpyxl")
+            return df
+        except Exception as e:
+            raise ValueError(f"Не удалось открыть файл .xls ни одним способом. Последняя ошибка: {e}")
+
+    def _try_xlrd(self, path: str, encoding: Optional[str]) -> Optional[Any]:
+        """Пробует открыть .xls через xlrd с разными кодировками."""
+        if not XLRD_AVAILABLE:
+            return None
+
+        # Принудительная кодировка
         if encoding:
-            # Принудительная кодировка
             try:
-                workbook = xlrd.open_workbook(path, encoding_override=encoding)
-                used_encoding = encoding
-                print(f"[ExcelReader] .xls открыт с кодировкой: {encoding}")
+                wb = xlrd.open_workbook(path, encoding_override=encoding)
+                print(f"[ExcelReader] xlrd открыл с кодировкой: {encoding}")
+                return wb
             except Exception as e:
                 print(f"[ExcelReader] Кодировка {encoding} не подошла: {e}")
-                workbook = None
 
-        if workbook is None:
-            # Автоподбор кодировки
-            last_error = None
-            for enc in self.ENCODINGS:
-                try:
-                    workbook = xlrd.open_workbook(path, encoding_override=enc)
-                    used_encoding = enc
-                    print(f"[ExcelReader] .xls открыт с кодировкой: {enc}")
-                    break
-                except Exception as e:
-                    last_error = e
-                    continue
-
-        if workbook is None:
-            # Последняя попытка — без encoding_override
+        # Автоподбор кодировок
+        for enc in self.ENCODINGS:
             try:
-                workbook = xlrd.open_workbook(path)
-                used_encoding = "auto"
-                print(f"[ExcelReader] .xls открыт без принудительной кодировки")
-            except Exception as e:
-                raise ValueError(f"Не удалось открыть .xls файл. Последняя ошибка: {last_error}")
+                wb = xlrd.open_workbook(path, encoding_override=enc)
+                print(f"[ExcelReader] xlrd открыл с кодировкой: {enc}")
+                return wb
+            except Exception:
+                continue
 
+        # Без encoding_override
+        try:
+            wb = xlrd.open_workbook(path)
+            print(f"[ExcelReader] xlrd открыл без принудительной кодировки")
+            return wb
+        except Exception as e:
+            print(f"[ExcelReader] xlrd не смог открыть файл: {e}")
+            return None
+
+    def _read_xlrd_workbook(self, workbook, sheet: Optional[Union[str, int]],
+                            color_col: Optional[str]) -> pd.DataFrame:
+        """Читает данные из xlrd workbook в pandas DataFrame."""
         # Выбираем лист
         if sheet is None:
             sheet_idx = 0
@@ -180,15 +204,18 @@ class ExcelReader:
 
         ws = workbook.sheet_by_index(sheet_idx)
 
-        # Читаем данные
+        # Читаем заголовки
         header_row = 0
-        headers = [str(ws.cell(header_row, col).value) if ws.cell(header_row, col).value is not None
-                   else f"col_{col}" for col in range(ws.ncols)]
+        headers = []
+        for col in range(ws.ncols):
+            val = ws.cell(header_row, col).value
+            headers.append(str(val) if val is not None else f"col_{col}")
 
-        # Фильтрация по цвету (xlrd не поддерживает цвета напрямую, игнорируем)
+        # Фильтрация по цвету не поддерживается в xlrd
         if color_col is not None:
             print("[ExcelReader] Предупреждение: фильтрация по цвету для .xls не поддерживается")
 
+        # Читаем данные
         rows = []
         for row_idx in range(header_row + 1, ws.nrows):
             row_data = {}
@@ -220,7 +247,6 @@ class ExcelReader:
         elif cell.ctype == xlrd.XL_CELL_ERROR:
             return None
         else:
-            # XL_CELL_TEXT — применяем fix_encoding
             return self.fix_encoding(cell.value)
 
     def _load_xlsx(self, path: str, sheet: Optional[Union[str, int]],
@@ -247,7 +273,6 @@ class ExcelReader:
             self.sheet_origin = sheet
 
         header_row = 1
-        # Исправляем кодировку заголовков
         headers = [ExcelReader.fix_encoding(cell.value) for cell in ws[header_row]]
 
         try:
@@ -278,7 +303,6 @@ class ExcelReader:
         wb.close()
 
         df = pd.read_excel(path, sheet_name=sheet)
-        # Исправляем кодировку в DataFrame
         df = self.fix_dataframe_encoding(df)
         filtered_df = df.iloc[colored_rows].reset_index(drop=True)
 
@@ -395,7 +419,6 @@ class MultiSheetReader:
         for sheet_name in sheet_names:
             try:
                 data = pd.read_excel(self.file_path, sheet_name=sheet_name)
-                # Исправляем кодировку
                 data = ExcelReader.fix_dataframe_encoding(data)
                 self.sheets[sheet_name] = data
             except Exception as e:
