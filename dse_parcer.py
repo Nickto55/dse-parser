@@ -34,6 +34,7 @@ class DseParser:
                                 'ДСЕ (изделия)' : dse_key
                                 ,'ДСЕ (детали)':self.data_detail_tabel[dse_detail].get('dse','')
                                 ,'Наименование (детали)':self.data_detail_tabel[dse_detail].get('detai','')
+                                ,'частота упоминаний':   self.data_detail_tabel[dse_detail].get('count dse','')
                             }
                         }
         return self.data

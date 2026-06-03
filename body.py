@@ -5,6 +5,60 @@ from tkinter import filedialog, END
 from dse_parcer import DseParser
 from scripts.excel_enter import ExcelDataInserter
 
+
+class HelpWindow(ctk.CTkToplevel):
+    def __init__(self, parent=None):
+        super().__init__()
+
+        # Если parent передан, можно привязать окно к нему (опционально)
+        if parent:
+            self.transient(parent)
+
+        self.title("DataWave - Справка")
+        self.geometry('700x600')
+
+        # Создаем текстовое поле. В CTk нет поддержки HTML, только обычный текст.
+        # state="normal" нужен для вставки текста, потом переключим на "disabled" (read-only)
+        self.text_edit = ctk.CTkTextbox(self, state="normal", wrap="word")
+        self.text_edit.pack(fill="both", expand=True, padx=20, pady=(20, 10))
+
+        try:
+            from static.help_text import help_text as help_text_str
+            # Вставляем текст с начала (индекс "0.0")
+            self.text_edit.insert("0.0", help_text_str)
+            self.text_edit.configure(state="disabled")  # Делаем поле только для чтения
+
+        except Exception as e:
+            self.text_edit.insert("0.0", f"Ошибка загрузки справки:\n{str(e)}")
+            self.text_edit.configure(state="disabled")
+
+        # Кнопка закрытия (аналог QPushButton)
+        # width=100 заменяет setFixedWidth(100)
+        self.close_btn = ctk.CTkButton(
+            self,
+            text="Закрыть",
+            width=100,
+            command=self.destroy  # Аналог clicked.connect(self.close)
+        )
+        # pack с anchor="e" и side="bottom" заменяет QHBoxLayout с addStretch()
+        # (кнопка будет прижата к правому нижнему углу)
+        self.close_btn.pack(side="bottom", anchor="e", padx=20, pady=(0, 20))
+
+    def show_event(self):
+        """
+        Альтернативный способ показа окна (аналог exec() в PyQt).
+        Делает окно видимым, поднимает его наверх и передает фокус.
+        """
+        self.deiconify()  # Показать окно, если оно было скрыто
+        self.lift()  # Поднять на передний план
+        self.focus_force()  # Передать фокус
+
+        # Если нужно модальное поведение (блокировка основного окна, как в exec()):
+        # self.grab_set()
+        # self.wait_window()
+
+
+
 class AppGui(ctk.CTk):
     def __init__(self):
         super().__init__()
@@ -62,6 +116,17 @@ class AppGui(ctk.CTk):
         self.status_text.pack(pady=5, padx=10)
         self.status_text.insert("0.0", "Готов к запуску...\n")
 
+        help_button = ctk.CTkButton(
+            self
+            ,text="Help"
+            ,fg_color='green'
+            ,hover_color='darkgrey'
+            ,width=50
+            ,height=35
+            ,command=lambda : HelpWindow(self)
+        )
+
+
         self.start_button = ctk.CTkButton(
             self
             ,text="Начать"
@@ -72,6 +137,7 @@ class AppGui(ctk.CTk):
             ,command=self.run_manager_thread
         )
         self.start_button.pack(pady=15)
+        help_button.pack(pady=15)
 
     def log(self, message):
         """Вывод логов в текстовое поле GUI"""
@@ -125,10 +191,6 @@ class AppGui(ctk.CTk):
                 ,self.detail_path_entry.get().replace(", ", ",").split(",")
             )
 
-            # for row_num, row in data_result.items():
-            #     print(row_num)
-            #     for key_num,keyd in row.items():
-            #         print("     ",key_num,keyd)
 
             inserter = ExcelDataInserter(self.product_path_entry.get().replace(", ", ",").split(",")[0])
             inserter.insert_data(data_result, sheet_name="Изделия")
