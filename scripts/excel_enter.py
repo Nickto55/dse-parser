@@ -6,14 +6,14 @@ class ExcelDataInserter:
     Класс для вставки вложенной структуры данных в существующий Excel-файл.
     Создаёт новый лист с заданным названием и записывает данные в табличном виде.
     """
-    
+
     def __init__(self, file_path):
         """
         :param file_path: Путь к существующему Excel-файлу
         """
         self.file_path = file_path
         self.wb = load_workbook(file_path)
-    
+
     def insert_data(self, data, sheet_name, headers=None):
         """
         Вставляет данные в новый лист Excel-файла.
@@ -28,10 +28,10 @@ class ExcelDataInserter:
         # Удаляем лист, если он уже существует
         if sheet_name in self.wb.sheetnames:
             del self.wb[sheet_name]
-        
+
         # Создаём новый лист
         ws = self.wb.create_sheet(title=sheet_name)
-        
+
         # Определяем заголовки из структуры данных, если не переданы явно
         if headers is None:
             first_item = None
@@ -42,21 +42,19 @@ class ExcelDataInserter:
                 if first_item:
                     break
             headers = list(first_item.keys()) if first_item else []
-        
+
         # Записываем заголовки (первая строка)
         for col_idx, header in enumerate(headers, 1):
             ws.cell(row=1, column=col_idx, value=header)
-        
+
         # Записываем данные
         row_idx = 2
         for product_key, product_value in data.items():
             for detail_key, detail_value in product_value.items():
-                print(detail_value)
                 for col_idx, header in enumerate(headers, 1):
-                    
                     ws.cell(row=row_idx, column=col_idx, value=detail_value.get(header, ''))
                 row_idx += 1
-        
+
         # Автоширина столбцов
         for col_idx in range(1, len(headers) + 1):
             max_length = 0
@@ -69,11 +67,12 @@ class ExcelDataInserter:
                     pass
             adjusted_width = min(max_length + 2, 50)
             ws.column_dimensions[column_letter].width = adjusted_width
-        
+
+        self.wb.freeze_panes = 'A2'
         # Сохраняем файл
         self.wb.save(self.file_path)
         return self.file_path
-    
+
     def close(self):
         """Закрывает workbook."""
         self.wb.close()

@@ -32,15 +32,14 @@ class HandlerDetailTabel:
             if dse in dict_data_key.keys():
                 dict_data_key[dse].append(keys_for_data)
             else:
-                dict_data_key[dse]=[keys_for_data]
+                dict_data_key[dse] = [keys_for_data]
 
         for dse_product, row_detail in self.data.items():
             dse = row_detail.get('dse', '')
             if dse in data_count.keys():
                 data_count[dse] = int(data_count.get(dse, '')) + 1
             else:
-                    data_count[dse] = 1
-
+                data_count[dse] = 1
 
         for key_detal, value_detal in data_count.items():
             for key_for_dse_data in dict_data_key.get(key_detal):
@@ -66,4 +65,4 @@ if __name__ == '__main__':
     data = app.main(path_to_detail_tabel=r"C:\Users\yakovlev_nd\Desktop\Tests\DseParser\отчеты\ер6.212.112.xls")
 
     for row_num, row in data.items():
-            print(row_num, row)
+        print(row_num, row)
