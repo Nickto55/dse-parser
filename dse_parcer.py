@@ -17,21 +17,25 @@ class DseParser:
         for path_to_detail_taibel in list_paths_detail_tabels:
             self.data_detail_tabel = self.handler_dTabel.main(path_to_detail_tabel=path_to_detail_taibel, data=self.data_detail_tabel)
 
+        count_dse = 0
         for path_to_product_tabel in list_paths_product_tabels:
             self.data_product_tabel = self.handler_pTabel.main(path_to_product_tabel)
             key_list_product_data = list((self.data_product_tabel.keys()))
             
             for dse_detail in self.data_detail_tabel.keys():
-                if not '_+_' in dse_detail: continue
-                part = dse_detail[:dse_detail.index('_+_')]
-                if part.lower() in key_list_product_data:
-                    self.data[part.lower()]={
-                        dse_detail[dse_detail.index('_+_')+3:]:{
-                            'ДСЕ (изделия)' : part.upper()
-                            ,'ДСЕ (детали)':self.data_detail_tabel[dse_detail].get('dse','')
-                            ,'Наименование (детали)':self.data_detail_tabel[dse_detail].get('detai','')
+                for dse_key in  key_list_product_data:
+                    if dse_key in dse_detail:
+                        count_dse += 1
+                        # # if not '_+_' in dse_detail: continue
+                        # part = dse_detail[:dse_detail.index('_+_')]
+                        # if part.lower() in key_list_product_data:
+                        self.data[dse_detail]={
+                            dse_detail:{
+                                'ДСЕ (изделия)' : dse_key
+                                ,'ДСЕ (детали)':self.data_detail_tabel[dse_detail].get('dse','')
+                                ,'Наименование (детали)':self.data_detail_tabel[dse_detail].get('detai','')
+                            }
                         }
-                    }
         return self.data
                     
 

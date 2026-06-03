@@ -9,7 +9,7 @@ from scripts.excel_reader import ExcelReader
 
 class HandlerDetailTabel:
     def __init__(self):
-        self.data = ()
+        self.data = {}
     def main(self, path_to_detail_tabel:str, sheet_name: str = None, data: dict = {}):
         """
         return: Обычн
@@ -26,7 +26,7 @@ class HandlerDetailTabel:
         for row_num,row in self.data.items():
              
              if pd.isna(row.get('Unnamed: 0','')) or row_num < 7: continue
-             dse[f'{os.path.basename(path)[:os.path.basename(path).index('.xls')]}_+_{row.get('Unnamed: 0','')}_++_{row.get('Unnamed: 3','')}'] = {
+             dse[f'{os.path.basename(path)[:os.path.basename(path).index('.xls')]}_+_{row.get('Unnamed: 0','')}_++_{row.get('Unnamed: 3','')}_+++_{row_num}'] = {
                   'dse':row.get('Unnamed: 0','')
                   ,'detai' : row.get('Unnamed: 3','')
                   ,'count' : str(row.get('Unnamed: 8',''))

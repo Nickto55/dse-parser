@@ -131,7 +131,7 @@ class AppGui(ctk.CTk):
             #         print("     ",key_num,keyd)
 
             inserter = ExcelDataInserter(self.product_path_entry.get().replace(", ", ",").split(",")[0])
-            inserter.insert_data(data_result, sheet_name="Данные ДСЕ")
+            inserter.insert_data(data_result, sheet_name="Изделия")
             inserter.close()
             
             self.log("Процесс успешно завершен.")
