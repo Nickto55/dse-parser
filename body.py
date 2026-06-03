@@ -125,10 +125,6 @@ class AppGui(ctk.CTk):
                 ,self.detail_path_entry.get().replace(", ", ",").split(",")
             )
 
-            # for row_num, row in data_result.items():
-            #     print(row_num)
-            #     for key_num,keyd in row.items():
-            #         print("     ",key_num,keyd)
 
             inserter = ExcelDataInserter(self.product_path_entry.get().replace(", ", ",").split(",")[0])
             inserter.insert_data(data_result, sheet_name="Изделия")
