@@ -1,6 +1,8 @@
 import threading
 import customtkinter as ctk
+
 from tkinter import filedialog, END
+from CTkMessagebox import CTkMessagebox
 
 from dse_parcer import DseParser
 from scripts.excel_enter import ExcelDataInserter
@@ -112,6 +114,28 @@ class AppGui(ctk.CTk):
         self.button_open_folder_detail.grid(row=1, column=1, pady=10, sticky="e")
 
 
+
+        self.reply_path_entry = ctk.CTkEntry(
+            self.main_frame
+            , width=380
+            , height=30
+            , corner_radius=4
+            , placeholder_text='Введите путь к файлу/файлам отчетов'
+        )
+        self.reply_path_entry.grid(row=2, column=0, padx=(0, 10), pady=10, sticky="w")
+
+        self.button_open_folder_reply = ctk.CTkButton(
+            self.main_frame
+            , text='Открыть'
+            , width=100
+            , height=30
+            , command=lambda: self.button_path_commands(label_batton='reply')
+        )
+        self.button_open_folder_reply.grid(row=2, column=1, pady=10, sticky="e")
+
+
+
+
         self.status_text = ctk.CTkTextbox(self, width=510, height=180)
         self.status_text.pack(pady=5, padx=10)
         self.status_text.insert("0.0", "Готов к запуску...\n")
@@ -154,7 +178,7 @@ class AppGui(ctk.CTk):
     
     def button_path_commands(self, label_batton: str):
         if label_batton == 'product':
-            path_list_filr = list(self.open_fils_to_path())
+            path_list_filr = list(self.open_fils_to_path(name='изделия'))
 
             str_paths = ""
             for path in path_list_filr: str_paths += f"{path}, "
@@ -164,7 +188,7 @@ class AppGui(ctk.CTk):
             self.product_path_entry.insert(0, str_paths)
             self.log(f"Установлен путь для файла изделия")
         if label_batton == 'detail':
-            path_list_filr = list(self.open_fils_to_path())
+            path_list_filr = list(self.open_fils_to_path(name='детали'))
 
             str_paths = ""
             for path in path_list_filr: str_paths += f"{path}, "
@@ -173,10 +197,28 @@ class AppGui(ctk.CTk):
             self.detail_path_entry.delete(0, END)
             self.detail_path_entry.insert(0, str_paths)
             self.log(f"Установлен путь для файла детали")
+        if label_batton == 'reply':
+            path_list_filr = list(self.open_fils_to_path(name='отчетов'))
+
+            for path_file in path_list_filr:
+                if ',' in path_file:
+                    CTkMessagebox(
+                        title='Внимание!'
+                        ,message='замените в названии файла или переименуйте местоположение файла так, что бы, в нем не было зяпятой ,'
+                        , icon='warning'
+                    )
+                    return None
+            str_paths = ""
+            for path in path_list_filr: str_paths += f"{path}, "
+            str_paths = str_paths[:-2]
+
+            self.reply_path_entry.delete(0, END)
+            self.reply_path_entry.insert(0, str_paths)
+            self.log(f"Установлен путь для файла jnxtnjd")
     
-    def open_fils_to_path(self):
+    def open_fils_to_path(self, name):
         filepaths = filedialog.askopenfilenames(
-            title="Выберите Excel файлы",
+            title=f"Выберите Excel файлы для ХЪ{name}",
             filetypes=(("Excel files", "*.xlsx *.xls *.xlsm"), ("All files", "*.*"))
         )
         if not filepaths:
@@ -184,23 +226,24 @@ class AppGui(ctk.CTk):
         return filepaths
 
     def execute_logic(self):
-        try:
-            parcser_product =  DseParser()
-            data_result = parcser_product.main(
-                self.product_path_entry.get().replace(", ", ",").split(",")
-                ,self.detail_path_entry.get().replace(", ", ",").split(",")
-            )
+        # try:
+        parcser_product =  DseParser()
+        data_result = parcser_product.main(
+            self.product_path_entry.get().replace(", ", ",").split(",")
+            ,self.detail_path_entry.get().replace(", ", ",").split(",")
+            ,self.reply_path_entry.get().replace(", ", ",").split(",")
+        )
 
 
-            inserter = ExcelDataInserter(self.product_path_entry.get().replace(", ", ",").split(",")[0])
-            inserter.insert_data(data_result, sheet_name="Изделия")
-            inserter.close()
-            
-            self.log("Процесс успешно завершен.")
-        except Exception as e:
-            self.log(f"ОШИБКА: {str(e)}")
-        finally:
-            self.start_button.configure(state="normal")
+        inserter = ExcelDataInserter(self.product_path_entry.get().replace(", ", ",").split(",")[0])
+        inserter.insert_data(data_result, sheet_name="Изделия")
+        inserter.close()
+
+        self.log("Процесс успешно завершен.")
+        # except Exception as e:
+        #     self.log(f"ОШИБКА: {str(e)}")
+        # finally:
+        #     self.start_button.configure(state="normal")
 
 
 if __name__ == "__main__":

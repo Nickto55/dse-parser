@@ -18,11 +18,15 @@ class ExcelReader:
     # Популярные русские кодировки для старых Excel-файлов
     ENCODINGS = ["cp1251", "utf-8", "cp866", "koi8_r", "iso-8859-5"]
 
-    def __init__(self, file_path: str, sheet_name: Optional[Union[str, int]] = None,
-                 color_filter_column: Optional[str] = None,
-                 track_sheet_origin: bool = False,
-                 encoding: Optional[str] = None,
-                 header_row: int = 0):
+    def __init__(
+            self
+            , file_path: str
+            , sheet_name: Optional[Union[str, int]] = None
+            , color_filter_column: Optional[str] = None
+            , track_sheet_origin: bool = False
+            , encoding: Optional[str] = None
+            , header_row: int = 0
+    ):
         self.file_path = file_path
         self.sheet_name = sheet_name
         self.encoding = encoding
@@ -80,11 +84,13 @@ class ExcelReader:
             else:
                 raise ValueError(f"Неизвестный формат файла: {file_path}")
 
-    def load_excel(self, file_path: Optional[str] = None,
-                   sheet_name: Optional[Union[str, int]] = None,
-                   color_filter_column: Optional[str] = None,
-                   encoding: Optional[str] = None,
-                   header_row: Optional[int] = None) -> Optional[pd.DataFrame]:
+    def load_excel(
+            self
+            , file_path: Optional[str] = None
+            , sheet_name: Optional[Union[str, int]] = None
+            , color_filter_column: Optional[str] = None
+            , encoding: Optional[str] = None
+    ) -> Optional[pd.DataFrame]:
         """
         Загружает данные из Excel файла с автоматическим определением формата
         и исправлением кодировки.
@@ -93,11 +99,11 @@ class ExcelReader:
         sheet = sheet_name if sheet_name is not None else self.sheet_name
         color_col = color_filter_column or self.color_filter_column
         enc = encoding or self.encoding
-        hdr = header_row if header_row is not None else self.header_row
+        hdr = self.header_row
 
         # Определяем формат файла
         file_format = self._detect_format(path)
-        print(f"[ExcelReader] Обнаружен формат: {file_format}")
+        print(f"[excel_reader] Обнаружен формат: {file_format}")
 
         try:
             if file_format == "xls":
@@ -236,7 +242,7 @@ class ExcelReader:
         if color_col is not None:
             return self._load_xlsx_with_color_filter(path, sheet, color_col)
         else:
-            return pd.read_excel(path, sheet_name=sheet)
+            return pd.read_excel(path, sheet_name=sheet,header=self.header_row)
 
     def _load_xlsx_with_color_filter(self, path: str, sheet: Optional[Union[str, int]],
                                      color_col: str) -> pd.DataFrame:
@@ -253,7 +259,7 @@ class ExcelReader:
             ws = wb[sheet]
             self.sheet_origin = sheet
 
-        header_row = 1
+        header_row = self.header_row
         # Исправляем кодировку заголовков
         headers = [ExcelReader.fix_encoding(cell.value) for cell in ws[header_row]]
 
