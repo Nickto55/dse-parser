@@ -54,6 +54,7 @@ if __name__ == '__main__':
             , r"C:\Users\yakovlev_nd\Desktop\Tests\DseParser\отчеты\ер7.756.090.xls"
             , r"C:\Users\yakovlev_nd\Desktop\Tests\DseParser\отчеты\лтия.723116.033.xls"
         ]
+        , list_paths_reply_tabels=[r"C:/Users/yakovlev_nd/Desktop/Tests/DseParser/1_logic/new/26.01.01-12.31.xlsx"]
     )
 
     for row_num, row in data_product.items():
